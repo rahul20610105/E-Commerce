@@ -1,6 +1,7 @@
 import { useContext, useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ShopContext } from "../context/ShopContext";
+import { useAuth } from "../context/AuthContext"; // Import AuthContext to check authentication
 import {
   Box,
   Button,
@@ -20,6 +21,7 @@ import RelatedProduct from "./RelatedProduct";
 const ProductItem = () => {
   const { id } = useParams();
   const { products, addToCart } = useContext(ShopContext);
+  const { isAuthenticated } = useAuth(); // Get isAuthenticated from Auth context
   const navigate = useNavigate();
   const product = products?.find((p) => p.id === parseInt(id));
 
@@ -50,6 +52,12 @@ const ProductItem = () => {
   }
 
   const handleAddToCart = () => {
+    // Check if the user is authenticated
+    if (!isAuthenticated) {
+      alert("Please log in to add items to your cart.");
+      return;
+    }
+
     // Check if size and quantity are selected
     if (!selectedSize || selectedQuantity <= 0) {
       setErrorMessage("Please select a size and a valid quantity.");

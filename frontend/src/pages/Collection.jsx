@@ -10,13 +10,14 @@ import {
   Select,
   MenuItem,
   Divider,
+  Button,
 } from "@mui/material";
 import { ShopContext } from "../context/ShopContext";
 import { ArrowDropDown, ArrowDropUp } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useNavigate } from "react-router-dom";
-import SearchBar from "../components/SearchBAr";
+import SearchBar from "../components/SearchBar";
 
 const Collection = () => {
   const { products } = useContext(ShopContext);
@@ -28,6 +29,9 @@ const Collection = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const navigate = useNavigate();
+
+  // Check if user is logged in by checking for token
+  const isLoggedIn = Boolean(localStorage.getItem("token"));
 
   const toggleCategory = (e) => {
     const value = e.target.name;
@@ -73,6 +77,15 @@ const Collection = () => {
 
   const handleClick = (id) => {
     navigate(`/product/${id}`);
+  };
+
+  const handleAddToCart = (productId) => {
+    if (!isLoggedIn) {
+      alert("Please log in to add items to your cart.");
+      return;
+    }
+    // Add to cart logic goes here
+    console.log("Product added to cart:", productId);
   };
 
   return (
@@ -191,6 +204,15 @@ const Collection = () => {
                   <Typography variant="body1" sx={{ color: "#FF5733", fontWeight: "bold" }}>
                     ${product.price}
                   </Typography>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    disabled={!isLoggedIn}
+                    onClick={() => handleAddToCart(product.id)}
+                    sx={{ marginTop: "10px" }}
+                  >
+                    Add to Cart
+                  </Button>
                 </Box>
               </Grid>
             ))}

@@ -45,7 +45,7 @@ const RelatedProduct = ({ category, subCategory }) => {
           textAlign: "center",
           fontSize: { xs: "1.5rem", md: "2rem" },
           justifyContent: "center",
-          textAlign: "center",
+         
         }}
       >
         Related Products

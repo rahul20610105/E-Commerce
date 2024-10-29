@@ -1,20 +1,46 @@
 import React, { useState } from 'react';
-import { Container, TextField, Button, Typography, Box, Link } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';  // Use RouterLink from react-router-dom
+import { Container, TextField, Button, Typography, Box, Link, IconButton, InputAdornment } from '@mui/material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { useAuth } from '../context/AuthContext'; // Adjust the import path to your AuthContext
+import { jwtDecode } from 'jwt-decode'; // Correct import for jwtDecode
 
 const Login = () => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
+  const { login } = useAuth(); // Use the login method from AuthContext
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (username === 'admin' && password === 'password123') {
-      console.log('Login successful');
-      setError('');
-    } else {
-      setError('Invalid username or password');
+    try {
+      const response = await axios.post('http://localhost:5000/api/user/login', { email, password });
+      if (response.data.success) {
+        console.log('Login successful');
+        login(response.data.token); // Call the login function from context
+        setError('');
+
+        // Check if the user is an admin based on the decoded token
+        const decoded = jwtDecode(response.data.token);
+        if (decoded.isAdmin) {
+          navigate('/admin'); // Navigate to the admin page for admins
+        } else {
+          navigate('/'); // Redirect to the homepage for regular users
+        }
+      } else {
+        setError(response.data.message);
+      }
+    } catch (err) {
+      console.error('Error during login:', err);
+      setError('Error occurred. Please try again.');
     }
+  };
+
+  const handleClickShowPassword = () => {
+    setShowPassword((prev) => !prev);
   };
 
   return (
@@ -34,21 +60,34 @@ const Login = () => {
         </Typography>
         <form onSubmit={handleLogin}>
           <TextField
-            label="Username"
+            label="Email"
             variant="outlined"
             fullWidth
             margin="normal"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
           <TextField
             label="Password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             variant="outlined"
             fullWidth
             margin="normal"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    onClick={handleClickShowPassword}
+                    edge="end"
+                    aria-label="toggle password visibility"
+                  >
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
           />
           {error && (
             <Typography color="error" variant="body2" sx={{ mt: 1 }}>
@@ -64,7 +103,6 @@ const Login = () => {
           <Link href="#" variant="body2" underline="hover">
             Forgot Your Password?
           </Link>
-          {/* Use RouterLink for navigation to the SignUp page */}
           <RouterLink to="/signup" style={{ textDecoration: 'none' }}>
             <Link variant="body2" underline="hover">
               Don't have an account? Sign Up
@@ -77,3 +115,4 @@ const Login = () => {
 };
 
 export default Login;
+

@@ -1,31 +1,34 @@
-import React, { useState, useContext } from 'react';
-import { Link } from 'react-router-dom'; // Import Link
-import AppBar from '@mui/material/AppBar';
-import Toolbar from '@mui/material/Toolbar';
-import IconButton from '@mui/material/IconButton';
-import Typography from '@mui/material/Typography';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import Badge from '@mui/material/Badge'; // Import Badge for cart count
-
-import MenuIcon from '@mui/icons-material/Menu';
-import AccountCircle from '@mui/icons-material/AccountCircle';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import SearchIcon from '@mui/icons-material/Search';
-import CloseIcon from '@mui/icons-material/Close';
-import Drawer from '@mui/material/Drawer';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
-import Box from '@mui/material/Box';
-import InputBase from '@mui/material/InputBase';
+import React, { useState, useContext, useEffect, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  AppBar,
+  Toolbar,
+  IconButton,
+  Typography,
+  Menu,
+  MenuItem,
+  Badge,
+  Drawer,
+  List,
+  ListItem,
+  Tabs,
+  Tab,
+  Box,
+  Button,
+  InputBase,
+  CircularProgress,
+} from '@mui/material';
+import {
+  Menu as MenuIcon,
+  ShoppingCart as ShoppingCartIcon,
+  Search as SearchIcon,
+} from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
-
-import logo from "../../public/assets/logo.webp"; // Make sure the logo path is correct
-
-import { ShopContext } from '../context/ShopContext'; // Assuming you're using ShopContext
+import axios from 'axios';
+import { ShopContext } from '../context/ShopContext';
+import ProfileIcon from './ProfileIcon';
+import { useAuth } from '../context/AuthContext';
 
 const navigation = [
   { name: 'HOME', href: '/', current: true },
@@ -36,13 +39,16 @@ const navigation = [
 ];
 
 export default function Navbar() {
-  const { cartItems } = useContext(ShopContext); // Access cart items from context
+  const { cartItems } = useContext(ShopContext);
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [anchorElUser, setAnchorElUser] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [searchError, setSearchError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [searchVisible, setSearchVisible] = useState(false);
   const [value, setValue] = useState(0);
 
   const theme = useTheme();
@@ -53,6 +59,19 @@ export default function Navbar() {
     setValue(newValue);
   };
 
+  const toggleDrawer = (open) => {
+    setDrawerOpen(open);
+  };
+
+  const toggleSearch = () => {
+    setSearchVisible((prev) => !prev);
+    if (searchVisible) {
+      setSearchInput(''); // Clear input when closing
+      setSearchResults([]); // Clear previous search results
+      setError('');
+    }
+  };
+
   const handleOpenUserMenu = (event) => {
     setAnchorElUser(event.currentTarget);
   };
@@ -61,48 +80,44 @@ export default function Navbar() {
     setAnchorElUser(null);
   };
 
-  const toggleDrawer = (open) => {
-    setDrawerOpen(open);
-  };
-
-  const toggleSearch = () => {
-    setSearchOpen((prev) => !prev);
-    if (searchOpen) {
-      setSearchInput('');
-      setSearchResults([]);
-      setSearchError('');
+  const handleProfileOptionClick = (option) => {
+    if (option === 'Profile') {
+      navigate('/profile');
+    } else if (option === 'Logout') {
+      console.log('User logged out');
     }
+    handleCloseUserMenu();
   };
 
-  const handleSearchChange = (event) => {
-    setSearchInput(event.target.value);
-  };
-
-  const handleSearchSubmit = async (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      try {
-        const response = await fetch(`/api/search?query=${searchInput}`);
-        const data = await response.json();
-        
-        if (data.length > 0) {
-          setSearchResults(data);
-          setSearchError('');
-        } else {
-          setSearchResults([]);
-          setSearchError('Item cannot be found');
-        }
-      } catch (error) {
-        console.error('Error fetching search results:', error);
-        setSearchError('An error occurred while searching');
-      }
-      setSearchInput('');
-      toggleSearch();
-    }
-  };
-
-  // Calculate the total number of items in the cart
   const totalCartItems = cartItems.reduce((total, item) => total + item.quantity, 0);
+
+  // Debounced search function
+const debouncedSearch = useCallback(
+  debounce(async (query) => {
+    if (query.trim() === '') {
+      setSearchResults([]);
+      setError('');
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await axios.get(`/api/products?search=${query}`);
+      setSearchResults(Array.isArray(response.data) ? response.data : []); // Ensure array format
+      setError(response.data.length === 0 ? 'Product does not exist' : '');
+    } catch (error) {
+      setError('Failed to fetch products');
+    } finally {
+      setLoading(false);
+    }
+  }, 300),
+  []
+);
+
+  const handleSearchInputChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    debouncedSearch(value);
+  };
 
   return (
     <AppBar
@@ -132,10 +147,11 @@ export default function Navbar() {
 
         <Typography variant="h6" component="div" sx={{ textAlign: 'center', flexGrow: 1 }}>
           <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }}>
-            <img alt="Your Company" src={logo} style={{ height: '40px', marginRight: '10px' }} />
+            <img src="/assets/logo.webp" alt="Your Company" style={{ height: '40px', marginRight: '30px' }} />
           </Link>
         </Typography>
 
+        {/* Navigation Tabs */}
         {!isMobile && (
           <Box sx={{ flexGrow: 1 }}>
             <Tabs
@@ -144,9 +160,18 @@ export default function Navbar() {
               centered
               textColor="inherit"
               TabIndicatorProps={{
-                sx: {
-                  backgroundColor: 'white',
-                  height: '4px',
+                sx: { backgroundColor: 'white', height: '4px' },
+              }}
+              sx={{
+                '& .MuiTab-root': {
+                  minWidth: '100px',
+                  padding: '0 12px',
+                  marginRight: '8px',
+                  fontSize: '1rem',
+                  fontWeight: 'bold',
+                  textTransform: 'none',
+                  '&.Mui-selected': { color: 'yellow' },
+                  '&:hover': { bgcolor: 'tomato', color: '#FFD700', transform: 'scale(1.1)' },
                 },
               }}
             >
@@ -156,51 +181,39 @@ export default function Navbar() {
                   label={item.name}
                   component={Link}
                   to={item.href}
-                  sx={{
-                    fontSize: '1rem',
-                    fontWeight: 'bold',
-                    textTransform: 'none',
-                    '&.Mui-selected': {
-                      color: 'yellow',
-                    },
-                    '&:hover': {
-                      bgcolor: "tomato",
-                      color: '#FFD700',
-                      transform: 'scale(1.1)',
-                    },
-                  }}
                 />
               ))}
             </Tabs>
           </Box>
         )}
 
+        {/* Search Bar */}
+        {searchVisible && (
+          <Box sx={{ position: 'relative' }}>
+            <InputBase
+              sx={{
+                ml: 1,
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                borderRadius: '4px',
+                padding: '4px 8px',
+                height: '36px',
+                width: '200px',
+              }}
+              placeholder="Search…"
+              value={searchInput}
+              onChange={handleSearchInputChange}
+              inputProps={{ 'aria-label': 'search' }}
+            />
+            {loading && <CircularProgress size={20} sx={{ position: 'absolute', right: 5, top: '50%', transform: 'translateY(-50%)' }} />}
+          </Box>
+        )}
+
+        {/* Search Icon */}
         <IconButton color="inherit" onClick={toggleSearch} sx={{ mr: 2 }}>
           <SearchIcon />
         </IconButton>
 
-        {searchOpen && (
-          <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', width: '300px' }}>
-            <InputBase
-              placeholder="Search…"
-              value={searchInput}
-              onChange={handleSearchChange}
-              onKeyDown={handleSearchSubmit}
-              sx={{
-                bgcolor: 'white',
-                padding: '5px 10px',
-                borderRadius: '4px',
-                color: 'black',
-                boxShadow: theme.shadows[3],
-                width: '100%',
-              }}
-            />
-            <IconButton onClick={toggleSearch} sx={{ position: 'absolute', right: '5px' }}>
-              <CloseIcon />
-            </IconButton>
-          </Box>
-        )}
-
+        {/* Cart Icon */}
         <Link to="/cart" style={{ color: 'inherit' }}>
           <IconButton color="inherit" sx={{ mr: 2 }}>
             <Badge badgeContent={totalCartItems} color="secondary">
@@ -209,66 +222,92 @@ export default function Navbar() {
           </IconButton>
         </Link>
 
-        <IconButton edge="end" color="inherit" onClick={handleOpenUserMenu}>
-          <AccountCircle />
-        </IconButton>
-
-        <Menu
-          anchorEl={anchorElUser}
-          open={Boolean(anchorElUser)}
-          onClose={handleCloseUserMenu}
-          anchorOrigin={{
-            vertical: 'top',
-            horizontal: 'right',
-          }}
-          transformOrigin={{
-            vertical: 'top',
-            horizontal: 'right',
-          }}
-        >
-          <MenuItem onClick={handleCloseUserMenu}>Your Profile</MenuItem>
-          <MenuItem onClick={handleCloseUserMenu}>Settings</MenuItem>
-          <MenuItem onClick={handleCloseUserMenu}>Sign out</MenuItem>
-        </Menu>
+        {/* Authentication Buttons */}
+        {!isAuthenticated ? (
+          <Box display="flex" alignItems="center" gap={1}>
+            <Button
+              color="inherit"
+              component={Link}
+              to="/login"
+              sx={{
+                backgroundColor: '#FF5733',
+                color: '#333',
+                fontWeight: 'bold',
+                borderRadius: '8px',
+                padding: '6px 16px',
+                textTransform: 'none',
+                '&:hover': { backgroundColor: '#FFC107' },
+                transition: 'all 0.3s ease-in-out',
+              }}
+            >
+              Sign In
+            </Button>
+            <Button
+              component={Link}
+              to="/signup"
+              sx={{
+                backgroundColor: '#FF5733',
+                color: '#333',
+                fontWeight: 'bold',
+                borderRadius: '8px',
+                padding: '6px 16px',
+                textTransform: 'none',
+                '&:hover': { backgroundColor: '#FFB300' },
+                transition: 'all 0.3s ease-in-out',
+              }}
+            >
+              Sign Up
+            </Button>
+          </Box>
+        ) : (
+          <ProfileIcon
+            anchorElUser={anchorElUser}
+            handleOpenUserMenu={handleOpenUserMenu}
+            handleCloseUserMenu={handleCloseUserMenu}
+            handleProfileOptionClick={handleProfileOptionClick}
+          />
+        )}
       </Toolbar>
 
-      <Drawer
-        anchor="left"
-        open={drawerOpen}
-        onClose={() => toggleDrawer(false)}
-        PaperProps={{
-          sx: {
-            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-            backdropFilter: 'blur(10px)',
-            width: isTablet || isMobile ? '100%' : '250px',
-            maxHeight: '100vh',
-            overflowY: 'auto',
-          },
-        }}
-      >
-        <List sx={{ paddingTop: 2 }}>
+      {/* Display Search Results */}
+      {searchVisible && (
+  <Box sx={{ padding: '10px', bgcolor: 'white', color: 'black', position: 'absolute', width: '100%' }}>
+    {error ? (
+      <Typography variant="body1" color="error">
+        {error}
+      </Typography>
+    ) : (
+      Array.isArray(searchResults) && searchResults.map((product) => (
+        <Link key={product._id} to={`/product/${product._id}`} style={{ textDecoration: 'none', color: 'black' }}>
+          <Typography variant="body1" sx={{ padding: '8px 0' }}>
+            {product.name}
+          </Typography>
+        </Link>
+      ))
+    )}
+  </Box>
+)}
+
+
+      {/* Drawer for Mobile */}
+      <Drawer anchor="left" open={drawerOpen} onClose={() => toggleDrawer(false)}>
+        <List sx={{ width: '250px' }}>
           {navigation.map((item) => (
-            <ListItem key={item.name} disablePadding>
-              <Link to={item.href} style={{ width: '100%', textDecoration: 'none' }}>
-                <MenuItem
-                  onClick={() => toggleDrawer(false)}
-                  sx={{
-                    padding: '10px 20px',
-                    color: 'black',
-                    fontWeight: 'bold',
-                    '&:hover': {
-                      backgroundColor: '#FFD700',
-                      color: '#FFFFFF',
-                    },
-                  }}
-                >
-                  {item.name}
-                </MenuItem>
-              </Link>
+            <ListItem button key={item.name} component={Link} to={item.href} onClick={() => toggleDrawer(false)}>
+              {item.name}
             </ListItem>
           ))}
         </List>
       </Drawer>
     </AppBar>
   );
+}
+
+// Utility function for debounce
+function debounce(func, delay) {
+  let timeoutId;
+  return function (...args) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func.apply(this, args), delay);
+  };
 }

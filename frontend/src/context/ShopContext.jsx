@@ -31,9 +31,10 @@ export const ShopProvider = ({ children }) => {
 
   // Function to place an order
   const addOrder = (order) => {
-    setOrders([...orders, order]); // Add new order to the orders list
+    setOrders((prevOrders) => [...prevOrders, order]);
+    // Clear the cart after placing the order
+    setCartItems([]);
   };
-
 
   // Add to cart function
   const addToCart = (product, q) => {

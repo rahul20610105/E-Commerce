@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ShopContext } from '../context/ShopContext';
-import Orders from './Orders';
+import Orders from "../pages/OrderHistory";
 
 const PlaceOrder = () => {
   const [paymentMethod, setPaymentMethod] = useState('cash');
@@ -96,7 +96,7 @@ const PlaceOrder = () => {
     addOrder(order);
     setOrderPlaced(true);
     setTimeout(() => {
-      navigate('/Orders'); // Redirect to orders page after a delay
+      navigate('/order-history'); // 
     }, 2000);
   };
 
